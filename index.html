@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>たのしくまなぶ 国語のたんけん</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 100%);
+            touch-action: manipulation;
+        }
+
+        .kanji-guide {
+            font-size: 200px;
+            color: #cbd5e1;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        .hana-maru {
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .bounce-hover:active {
+            transform: scale(0.93);
+        }
+
+        /* Canvas for handwriting */
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between select-none">
+
+    <!-- Header Navigation -->
+    <header class="bg-white/90 backdrop-blur shadow-lg p-4 sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="showMenu()">
+                <span class="text-4xl">✏️</span>
+                <h1 class="text-2xl md:text-3xl font-black text-amber-600">たのしくまなぶ こくご</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="showMenu()" class="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg transition bounce-hover text-lg md:text-xl flex items-center gap-2">
+                    🏠 メニュー
+                </button>
+                <div class="flex items-center bg-yellow-100 text-yellow-800 px-4 py-2 rounded-2xl font-black text-lg md:text-xl border-2 border-yellow-300">
+                    ⭐ ごほうび: <span id="star-count" class="ml-2 text-2xl text-amber-600">0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-5xl mx-auto p-4 flex-grow w-full flex flex-col justify-center items-center">
+
+        <!-- MENU VIEW -->
+        <section id="view-menu" class="w-full space-y-6 text-center my-auto">
+            <div class="bg-white/95 p-8 rounded-3xl shadow-2xl border-4 border-amber-300">
+                <h2 class="text-3xl md:text-4xl font-black text-slate-700 mb-3">どれに いどむ？</h2>
+                <p class="text-slate-500 text-lg md:text-xl mb-8 font-bold">えらんで たのしく レッスンしよう！（しょう1 かんじ 80じ）</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                    <!-- Mode 1: Kanji Matching -->
+                    <button onclick="startMatchingGame()" class="bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-500 hover:to-sky-600 text-white p-6 md:p-8 rounded-3xl shadow-xl border-b-8 border-sky-700 flex flex-col items-center justify-center gap-4 transition bounce-hover">
+                        <span class="text-7xl md:text-8xl">🃏</span>
+                        <span class="text-2xl font-black">かんじと えカード</span>
+                        <span class="text-sm md:text-base bg-sky-200 text-sky-900 px-4 py-1.5 rounded-full font-bold">ことばと いみ</span>
+                    </button>
+
+                    <!-- Mode 2: Kanji Trace / Handwriting -->
+                    <button onclick="startWritingGame()" class="bg-gradient-to-b from-emerald-400 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white p-6 md:p-8 rounded-3xl shadow-xl border-b-8 border-emerald-700 flex flex-col items-center justify-center gap-4 transition bounce-hover">
+                        <span class="text-7xl md:text-8xl">✍️</span>
+                        <span class="text-2xl font-black">かんじ なぞりがき</span>
+                        <span class="text-sm md:text-base bg-emerald-200 text-emerald-900 px-4 py-1.5 rounded-full font-bold">かいて みよう（80じ）</span>
+                    </button>
+
+                    <!-- Mode 3: Scene Word Selection -->
+                    <button onclick="startSceneGame()" class="bg-gradient-to-b from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600 text-white p-6 md:p-8 rounded-3xl shadow-xl border-b-8 border-purple-700 flex flex-col items-center justify-center gap-4 transition bounce-hover">
+                        <span class="text-7xl md:text-8xl">🖼️</span>
+                        <span class="text-2xl font-black">ばめんと ことば</span>
+                        <span class="text-sm md:text-base bg-purple-200 text-purple-900 px-4 py-1.5 rounded-full font-bold">ばめんに あう ことば</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODE 1: KANJI CARD MATCHING -->
+        <section id="view-matching" class="w-full hidden space-y-4">
+            <div class="bg-white/95 p-6 md:p-8 rounded-3xl shadow-2xl border-4 border-sky-300 text-center relative">
+                <div class="flex justify-between items-center mb-6">
+                    <span class="text-lg font-black text-sky-700 bg-sky-100 px-5 py-2 rounded-full border-2 border-sky-200">もんだい <span id="match-q-num" class="text-2xl text-sky-600">1</span> / 5</span>
+                    <button onclick="speakText(currentMatchQuestion.kanji + '、' + currentMatchQuestion.reading)" class="bg-sky-500 hover:bg-sky-600 text-white font-black px-6 py-3 rounded-2xl shadow transition bounce-hover text-lg flex items-center gap-2">
+                        🔊 おとを きく
+                    </button>
+                </div>
+
+                <div class="my-6">
+                    <p class="text-slate-600 text-xl md:text-2xl font-bold mb-4">この かんじの 「え」は どれかな？</p>
+                    <div id="match-target-kanji" class="text-8xl md:text-9xl font-black text-sky-600 bg-sky-50 inline-block px-14 py-8 rounded-3xl border-4 border-sky-200 shadow-inner my-2">
+                        山
+                    </div>
+                </div>
+
+                <!-- Choice Cards - Extra Large Buttons -->
+                <div id="match-choices" class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-8">
+                    <!-- Dynamic Choice Buttons inserted by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- MODE 2: KANJI WRITING / TRACING -->
+        <section id="view-writing" class="w-full hidden space-y-4">
+            <div class="bg-white/95 p-6 md:p-8 rounded-3xl shadow-2xl border-4 border-emerald-300 text-center relative">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+                    <span class="text-base md:text-lg font-black text-emerald-800 bg-emerald-100 px-4 py-2 rounded-full">しょう1 かんじ かきかた（ぜん80じ）</span>
+                    
+                    <div class="flex items-center gap-3">
+                        <button onclick="openKanjiPickerModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-2xl shadow transition bounce-hover text-base flex items-center gap-2">
+                            📖 80じ から えらぶ
+                        </button>
+                        <button id="btn-read-kanji" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-4 py-2.5 rounded-2xl text-base font-black border border-emerald-300">
+                            🔊 よみかた
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Easy Navigation Buttons -->
+                <div class="flex justify-between items-center gap-4 my-2">
+                    <button onclick="prevWritingKanji()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-black px-6 py-3 rounded-2xl transition bounce-hover text-lg">
+                        ⬅️ まえ
+                    </button>
+                    <div class="text-xl font-black text-slate-600">
+                        <span id="current-kanji-num">1</span> / 80
+                    </div>
+                    <button onclick="nextWritingKanji()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-black px-6 py-3 rounded-2xl transition bounce-hover text-lg">
+                        つぎ ➡️
+                    </button>
+                </div>
+
+                <div class="relative w-[320px] h-[320px] sm:w-[380px] sm:h-[380px] mx-auto my-4 border-4 border-dashed border-emerald-400 rounded-3xl bg-white shadow-inner flex items-center justify-center overflow-hidden">
+                    <!-- Guide Kanji Background -->
+                    <div id="writing-guide-kanji" class="absolute inset-0 flex items-center justify-center kanji-guide">
+                        木
+                    </div>
+                    <!-- Drawing Canvas -->
+                    <canvas id="write-canvas" width="380" height="380" class="absolute inset-0 z-10 cursor-crosshair"></canvas>
+                    
+                    <!-- Hanamaru Overlay -->
+                    <div id="hanamaru-overlay" class="absolute inset-0 z-20 hidden flex items-center justify-center bg-white/70 backdrop-blur-sm">
+                        <div class="text-red-500 font-black text-9xl hana-maru flex flex-col items-center">
+                            <span>💮</span>
+                            <span class="text-3xl text-red-600 mt-2">たいへん よくできました！</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-slate-700 font-black text-2xl md:text-3xl mb-4" id="writing-info">
+                    「木」（き）
+                </div>
+
+                <!-- Canvas Control Buttons - Extra Large + Photo Save -->
+                <div class="flex flex-wrap justify-center gap-4">
+                    <button onclick="clearCanvas()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-black px-6 py-4 rounded-2xl transition bounce-hover flex items-center gap-2 text-xl">
+                        🔄 やりなおす
+                    </button>
+                    <button onclick="saveCanvasImage()" class="bg-sky-500 hover:bg-sky-600 text-white font-black px-6 py-4 rounded-2xl shadow-lg border-b-4 border-sky-700 transition bounce-hover flex items-center gap-2 text-xl">
+                        📷 しゃしんに ほぞん
+                    </button>
+                    <button onclick="checkWriting()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl border-b-6 border-emerald-700 transition bounce-hover flex items-center gap-2 text-2xl">
+                        ✨ できた！
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODE 3: SCENE WORD SELECTION -->
+        <section id="view-scene" class="w-full hidden space-y-4">
+            <div class="bg-white/95 p-6 md:p-8 rounded-3xl shadow-2xl border-4 border-purple-300 text-center relative">
+                <div class="flex justify-between items-center mb-6">
+                    <span class="text-lg font-black text-purple-700 bg-purple-100 px-5 py-2 rounded-full border-2 border-purple-200">もんだい <span id="scene-q-num" class="text-2xl text-purple-600">1</span> / 5</span>
+                    <div class="flex items-center gap-3">
+                        <button onclick="showSceneHint()" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-black px-5 py-3 rounded-2xl shadow transition bounce-hover text-lg flex items-center gap-2 border-2 border-amber-300">
+                            💡 ヒント
+                        </button>
+                        <button onclick="speakText(currentSceneQuestion.situation + '。' + currentSceneQuestion.question)" class="bg-purple-500 hover:bg-purple-600 text-white font-black px-6 py-3 rounded-2xl shadow transition bounce-hover text-lg flex items-center gap-2">
+                            🔊 おとを きく
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Scene Picture Card Container -->
+                <div class="my-4 p-6 bg-purple-50 rounded-3xl border-4 border-purple-200 shadow-inner flex flex-col items-center">
+                    <div id="scene-emoji" class="text-9xl mb-4 transform hover:scale-110 transition duration-300">
+                        🌅
+                    </div>
+                    <div id="scene-situation" class="text-2xl md:text-3xl font-black text-purple-900 mb-2">
+                        あさ おきたとき
+                    </div>
+                    <div id="scene-question" class="text-xl md:text-2xl font-bold text-slate-600">
+                        なんて いうかな？
+                    </div>
+                </div>
+
+                <!-- Word Choices - Extra Large Buttons -->
+                <div id="scene-choices" class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+                    <!-- Dynamic Choice Buttons -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 80 KANJI SELECTION MODAL -->
+    <div id="modal-kanji-picker" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[85vh] p-6 md:p-8 flex flex-col shadow-2xl border-4 border-emerald-400">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl md:text-3xl font-black text-emerald-800">しょう1 の かんじ（80じ）を えらぶ</h3>
+                <button onclick="closeKanjiPickerModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 w-12 h-12 rounded-full font-black text-2xl flex items-center justify-center">
+                    ✕
+                </button>
+            </div>
+            <p class="text-slate-500 font-bold mb-4">れんしゅうしたい かんじを タップしてね！</p>
+            
+            <div id="kanji-grid-modal" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 overflow-y-auto p-2 flex-grow">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white/80 py-4 text-center text-slate-600 text-sm font-bold">
+        国語デジタル教材・学習アプリ | めざせ！かんじとことばの はかせ
+    </footer>
+
+    <script>
+        /* WEB AUDIO API FOR SOUND EFFECTS */
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            if (type === 'correct') {
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(659.25, now);
+                osc1.frequency.setValueAtTime(880, now + 0.15);
+                gain1.gain.setValueAtTime(0.3, now);
+                gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                osc1.connect(gain1);
+                gain1.connect(audioCtx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.6);
+            } else if (type === 'pop') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'clear') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                    gain.gain.setValueAtTime(0.25, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.4);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.12);
+                    osc.stop(now + idx * 0.12 + 0.4);
+                });
+            }
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ja-JP';
+                utterance.rate = 0.85; // Slower for clarity
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        /* ALL 80 FIRST-GRADE KANJI DATA */
+        const KANJI_DATA = [
+            { kanji: '一', reading: 'いち', emoji: '1️⃣', meaning: 'いち（ひとつ）' },
+            { kanji: '右', reading: 'みぎ', emoji: '👉', meaning: 'みぎ（みぎて・みぎがわ）' },
+            { kanji: '雨', reading: 'あめ', emoji: '🌧️', meaning: 'あめ（あめが ふる）' },
+            { kanji: '円', reading: 'えん', emoji: '🪙', meaning: 'えん（おかねの えん）' },
+            { kanji: '王', reading: 'おう', emoji: '👑', meaning: 'おう（おうさま）' },
+            { kanji: '音', reading: 'おと', emoji: '🎵', meaning: 'おと（たのしい おと）' },
+            { kanji: '下', reading: 'した', emoji: '👇', meaning: 'した（つくえの した）' },
+            { kanji: '火', reading: 'ひ', emoji: '🔥', meaning: 'ひ（あかい ひ）' },
+            { kanji: '花', reading: 'はな', emoji: '🌸', meaning: 'はな（きれいな はな）' },
+            { kanji: '貝', reading: 'かい', emoji: '🐚', meaning: 'かい（うみの かい）' },
+            { kanji: '学', reading: 'まなぶ', emoji: '🏫', meaning: 'がっこう（まなぶ）' },
+            { kanji: '気', reading: 'き', emoji: '🎈', meaning: 'げんき（きもち）' },
+            { kanji: '九', reading: 'きゅう', emoji: '9️⃣', meaning: 'きゅう（ここのつ）' },
+            { kanji: '休', reading: 'やすむ', emoji: '🛋️', meaning: 'やすみ（ひとやすみ）' },
+            { kanji: '玉', reading: 'たま', emoji: '🔮', meaning: 'たま（まんまるの たま）' },
+            { kanji: '金', reading: 'かね', emoji: '💰', meaning: 'きん（おかね）' },
+            { kanji: '空', reading: 'そら', emoji: '🌤️', meaning: 'そら（あおい そら）' },
+            { kanji: '月', reading: 'つき', emoji: '🌙', meaning: 'つき（よるの つき）' },
+            { kanji: '犬', reading: 'いぬ', emoji: '🐶', meaning: 'いぬ（ワンワン）' },
+            { kanji: '見', reading: 'みる', emoji: '👀', meaning: 'みる（めを こらして）' },
+            { kanji: '五', reading: 'ご', emoji: '5️⃣', meaning: 'ご（いつつ）' },
+            { kanji: '口', reading: 'くち', emoji: '👄', meaning: 'くち（ごはんを たべる）' },
+            { kanji: '校', reading: 'こう', emoji: '🏫', meaning: 'がっこう（こうしゃ）' },
+            { kanji: '左', reading: 'ひだり', emoji: '👈', meaning: 'ひだり（ひだりて）' },
+            { kanji: '三', reading: 'さん', emoji: '3️⃣', meaning: 'さん（みっつ）' },
+            { kanji: '山', reading: 'やま', emoji: '⛰️', meaning: 'やま（たかい やま）' },
+            { kanji: '子', reading: 'こ', emoji: '👶', meaning: 'こども（こ）' },
+            { kanji: '四', reading: 'よん', emoji: '4️⃣', meaning: 'よん（よっつ）' },
+            { kanji: '糸', reading: 'いと', emoji: '🧵', meaning: 'いと（ながい いと）' },
+            { kanji: '字', reading: 'じ', emoji: '✏️', meaning: 'じ（もじを かく）' },
+            { kanji: '耳', reading: 'みみ', emoji: '👂', meaning: 'みみ（おとを きく）' },
+            { kanji: '七', reading: 'なな', emoji: '7️⃣', meaning: 'なな（ななつ）' },
+            { kanji: '車', reading: 'くるま', emoji: '🚗', meaning: 'くるま（ブーブー）' },
+            { kanji: '手', reading: 'て', emoji: '✋', meaning: 'て（じゃんけん）' },
+            { kanji: '十', reading: 'じゅう', emoji: '🔟', meaning: 'じゅう（とお）' },
+            { kanji: '出', reading: 'でる', emoji: '🚪', meaning: 'でる（そとに でる）' },
+            { kanji: '女', reading: 'おんな', emoji: '👧', meaning: 'おんな（おんなの ひと）' },
+            { kanji: '小', reading: 'ちいさい', emoji: '🐣', meaning: 'ちいさい（ちいさな とり）' },
+            { kanji: '上', reading: 'うえ', emoji: '👆', meaning: 'うえ（つくえの うえ）' },
+            { kanji: '森', reading: 'もり', emoji: '🌲', meaning: 'もり（きが たくさん）' },
+            { kanji: '人', reading: 'ひと', emoji: '🚶', meaning: 'ひと（たくさんの ひと）' },
+            { kanji: '水', reading: 'みず', emoji: '💧', meaning: 'みず（つめたい みず）' },
+            { kanji: '正', reading: 'ただしい', emoji: '⭕', meaning: 'ただしい（せいかい）' },
+            { kanji: '生', reading: 'いきる', emoji: '🌱', meaning: 'いきる（めが でる）' },
+            { kanji: '青', reading: 'あお', emoji: '🟦', meaning: 'あお（あおい いろ）' },
+            { kanji: '夕', reading: 'ゆう', emoji: '🌇', meaning: 'ゆうがた（ゆうやけ）' },
+            { kanji: '石', reading: 'いし', emoji: '🪨', meaning: 'いし（かたい いし）' },
+            { kanji: '赤', reading: 'あか', emoji: '🟥', meaning: 'あか（あかい いろ）' },
+            { kanji: '千', reading: 'せん', emoji: '🔢', meaning: 'せん（たくさん）' },
+            { kanji: '川', reading: 'かわ', emoji: '🌊', meaning: 'かわ（みずが ながれる）' },
+            { kanji: '先', reading: 'さき', emoji: '🏃', meaning: 'せんせい（さきに）' },
+            { kanji: '早', reading: 'はやい', emoji: '🌅', meaning: 'はやい（あさ はやく）' },
+            { kanji: '草', reading: 'くさ', emoji: '🌿', meaning: 'くさ（みどりの くさ）' },
+            { kanji: '足', reading: 'あし', emoji: '🦶', meaning: 'あし（あるく あし）' },
+            { kanji: '村', reading: 'むら', emoji: '🏡', meaning: 'むら（おうちが ある）' },
+            { kanji: '大', reading: 'おおきい', emoji: '🐘', meaning: 'おおきい（おおきな ゾウ）' },
+            { kanji: '男', reading: 'おとこ', emoji: '👦', meaning: 'おとこ（おとこの ひと）' },
+            { kanji: '竹', reading: 'たけ', emoji: '🎍', meaning: 'たけ（まっすぐな たけ）' },
+            { kanji: '中', reading: 'なか', emoji: '📦', meaning: 'なか（はおこの なか）' },
+            { kanji: '虫', reading: 'むし', emoji: '🐛', meaning: 'むし（ちいさな むし）' },
+            { kanji: '町', reading: 'まち', emoji: '🏙️', meaning: 'まち（にぎやかな まち）' },
+            { kanji: '天', reading: 'てん', emoji: '☁️', meaning: 'てんき（そら）' },
+            { kanji: '田', reading: 'た', emoji: '🌾', meaning: 'たんぼ（おこめの た）' },
+            { kanji: '土', reading: 'つち', emoji: '🟫', meaning: 'つち（くろい つち）' },
+            { kanji: '二', reading: 'に', emoji: '2️⃣', meaning: 'に（ふたつ）' },
+            { kanji: '日', reading: 'ひ', emoji: '☀️', meaning: 'たいよう（ひ）' },
+            { kanji: '入', reading: 'はいる', emoji: '📥', meaning: 'はいる（なかへ はいる）' },
+            { kanji: '年', reading: 'とし', emoji: '📅', meaning: 'いちねんせい（とし）' },
+            { kanji: '白', reading: 'しろ', emoji: '⬜', meaning: 'しろ（しろい いろ）' },
+            { kanji: '八', reading: 'はち', emoji: '8️⃣', meaning: 'はち（やっつ）' },
+            { kanji: '百', reading: 'ひゃく', emoji: '💯', meaning: 'ひゃく（ひゃくてん）' },
+            { kanji: '文', reading: 'ふみ', emoji: '📖', meaning: 'ほん（ぶんしょう）' },
+            { kanji: '木', reading: 'き', emoji: '🌳', meaning: 'き（みどりの き）' },
+            { kanji: '本', reading: 'ほん', emoji: '📚', meaning: 'ほん（えほん）' },
+            { kanji: '名', reading: 'な', emoji: '📛', meaning: 'なまえ（なふだ）' },
+            { kanji: '目', reading: 'め', emoji: '👁️', meaning: 'め（ものを みる）' },
+            { kanji: '立', reading: 'たつ', emoji: '🧍', meaning: 'たつ（まっすぐ たつ）' },
+            { kanji: '力', reading: 'ちから', emoji: '💪', meaning: 'ちから（むきむき）' },
+            { kanji: '林', reading: 'はやし', emoji: '🌲', meaning: 'はやし（きが ならぶ）' },
+            { kanji: '六', reading: 'ろく', emoji: '6️⃣', meaning: 'ろく（むっつ）' }
+        ];
+
+        /* APP STATE */
+        let stars = 0;
+        let matchQuestionIndex = 0;
+        let currentMatchQuestion = null;
+        let currentWritingIndex = 0;
+
+        /* MODE 3: SCENE WORD DATA */
+        const SCENE_DATA = [
+            {
+                emoji: '🌅',
+                situation: 'あさ おきたとき',
+                question: 'なんて あいさつ するかな？',
+                correct: 'おはよう',
+                choices: [
+                    { word: 'おはよう', icon: '☀️' },
+                    { word: 'おやすみ', icon: '🌙' },
+                    { word: 'さようなら', icon: '👋' }
+                ]
+            },
+            {
+                emoji: '🍱',
+                situation: 'ごはんを たべるとき',
+                question: 'ごはんの まえに なんて いうかな？',
+                correct: 'いただきます',
+                choices: [
+                    { word: 'いただきます', icon: '🥢' },
+                    { word: 'ごちそうさま', icon: '🙏' },
+                    { word: 'すみません', icon: '🙇' }
+                ]
+            },
+            {
+                emoji: '🎁',
+                situation: 'プレゼントを もらったとき',
+                question: 'なんて おれいを いうかな？',
+                correct: 'ありがとう',
+                choices: [
+                    { word: 'ありがとう', icon: '🥰' },
+                    { word: 'ごめんなさい', icon: '🙇‍♂️' },
+                    { word: 'さようなら', icon: '👋' }
+                ]
+            },
+            {
+                emoji: '🩹',
+                situation: 'ころんで いたいとき',
+                question: 'せんせいに なんて つたえるかな？',
+                correct: 'いたいよ',
+                choices: [
+                    { word: 'いたいよ', icon: '😭' },
+                    { word: 'たのしいな', icon: '😄' },
+                    { word: 'お腹すいた', icon: '😋' }
+                ]
+            },
+            {
+                emoji: '🧸',
+                situation: 'お友達の おもちゃを つかいたいとき',
+                question: 'なんて おねがい するかな？',
+                correct: 'かして',
+                choices: [
+                    { word: 'かして', icon: '🤝' },
+                    { word: 'あげる', icon: '🎁' },
+                    { word: 'ダメ', icon: '🙅' }
+                ]
+            },
+            {
+                emoji: '🐘',
+                situation: '大きな ゾウさんが あるいているよ',
+                question: 'どんな おとが するかな？',
+                correct: 'どしん どしん',
+                choices: [
+                    { word: 'どしん どしん', icon: '🐘' },
+                    { word: 'トントン', icon: '🚪' },
+                    { word: 'サラサラ', icon: '🍃' }
+                ]
+            },
+            {
+                emoji: '🌧️',
+                situation: 'あめが ふってきたよ',
+                question: 'どれを つかって そとに でるかな？',
+                correct: 'かさ',
+                choices: [
+                    { word: 'かさ', icon: '☂️' },
+                    { word: 'くつした', icon: '🧦' },
+                    { word: 'ほん', icon: '📖' }
+                ]
+            },
+            {
+                emoji: '🤝',
+                situation: 'お友達が こまっているとき',
+                question: 'なんて こえを かけるかな？',
+                correct: 'だいじょうぶ？',
+                choices: [
+                    { word: 'だいじょうぶ？', icon: '💖' },
+                    { word: 'バイバイ', icon: '👋' },
+                    { word: 'しりません', icon: '🤷' }
+                ]
+            },
+            {
+                emoji: '🌙',
+                situation: 'よる ねるとき',
+                question: 'なんて あいさつ するかな？',
+                correct: 'おやすみなさい',
+                choices: [
+                    { word: 'おやすみなさい', icon: '🌙' },
+                    { word: 'おはよう', icon: '☀️' },
+                    { word: 'こんにちは', icon: '🌤️' }
+                ]
+            },
+            {
+                emoji: '🏫',
+                situation: 'がっこうに ついたとき',
+                question: 'せんせいや お友達に なんて いうかな？',
+                correct: 'おはようございます',
+                choices: [
+                    { word: 'おはようございます', icon: '🏫' },
+                    { word: 'ただいま', icon: '🏠' },
+                    { word: 'おやすみ', icon: '🌙' }
+                ]
+            }
+        ];
+
+        let sceneQuestionIndex = 0;
+        let currentSceneQuestion = null;
+        let isSceneHintShown = false;
+
+        function startSceneGame() {
+            sceneQuestionIndex = 0;
+            showView('view-scene');
+            loadNextSceneQuestion();
+        }
+
+        function loadNextSceneQuestion() {
+            if (sceneQuestionIndex >= 5) {
+                playSound('clear');
+                speakText('すごーい！ばめんの ことば ぜんぶ クリアできたね！');
+                addStar();
+                alert('🎉 すごーい！ 5もん ぜんぶ クリアできたね！');
+                showMenu();
+                return;
+            }
+
+            isSceneHintShown = false;
+            document.getElementById('scene-q-num').textContent = sceneQuestionIndex + 1;
+            
+            const shuffled = [...SCENE_DATA].sort(() => Math.random() - 0.5);
+            currentSceneQuestion = shuffled[sceneQuestionIndex];
+
+            document.getElementById('scene-emoji').textContent = currentSceneQuestion.emoji;
+            document.getElementById('scene-situation').textContent = currentSceneQuestion.situation;
+            document.getElementById('scene-question').textContent = currentSceneQuestion.question;
+
+            speakText(`${currentSceneQuestion.situation}。${currentSceneQuestion.question}`);
+
+            const choices = [...currentSceneQuestion.choices].sort(() => Math.random() - 0.5);
+            const container = document.getElementById('scene-choices');
+            container.innerHTML = '';
+
+            choices.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = "bg-white hover:bg-purple-50 border-4 border-purple-200 hover:border-purple-500 p-6 md:p-8 rounded-3xl flex flex-col items-center justify-center shadow-lg transition bounce-hover min-h-[140px]";
+                btn.innerHTML = `
+                    <span class="scene-hint-emoji text-6xl md:text-7xl mb-2 hidden">${item.icon}</span>
+                    <span class="text-3xl md:text-4xl font-black text-slate-800">${item.word}</span>
+                `;
+                btn.onclick = () => checkSceneAnswer(item.word);
+                container.appendChild(btn);
+            });
+        }
+
+        function showSceneHint() {
+            playSound('pop');
+            if (isSceneHintShown) return;
+            isSceneHintShown = true;
+            
+            speakText('ヒントだよ！えを さんこうに してみてね！');
+            
+            const hintEmojis = document.querySelectorAll('.scene-hint-emoji');
+            hintEmojis.forEach(el => {
+                el.classList.remove('hidden');
+                el.classList.add('hana-maru');
+            });
+        }
+
+        function checkSceneAnswer(selectedWord) {
+            if (selectedWord === currentSceneQuestion.correct) {
+                playSound('correct');
+                speakText(`せいかい！${selectedWord} だね！`);
+                sceneQuestionIndex++;
+                setTimeout(loadNextSceneQuestion, 1400);
+            } else {
+                playSound('pop');
+                speakText('もういちど ばめんを みて えらんでみよう！');
+            }
+        }
+
+        /* VIEW NAVIGATION */
+        function showView(viewId) {
+            playSound('pop');
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        function showMenu() {
+            showView('view-menu');
+        }
+
+        function addStar() {
+            stars++;
+            document.getElementById('star-count').textContent = stars;
+        }
+
+        /* MODE 1: KANJI MATCHING GAME LOGIC */
+        function startMatchingGame() {
+            matchQuestionIndex = 0;
+            showView('view-matching');
+            loadNextMatchingQuestion();
+        }
+
+        function loadNextMatchingQuestion() {
+            if (matchQuestionIndex >= 5) {
+                playSound('clear');
+                speakText('すごーい！ぜんぶ クリアできたね！');
+                addStar();
+                alert('🎉 すごーい！ 5もん ぜんぶ クリアできたね！');
+                showMenu();
+                return;
+            }
+
+            document.getElementById('match-q-num').textContent = matchQuestionIndex + 1;
+            
+            // Randomly select target from all 80 kanji
+            const randomIndex = Math.floor(Math.random() * KANJI_DATA.length);
+            currentMatchQuestion = KANJI_DATA[randomIndex];
+            
+            // Display Kanji ONLY (Reading label removed as requested)
+            document.getElementById('match-target-kanji').textContent = currentMatchQuestion.kanji;
+
+            speakText(`${currentMatchQuestion.kanji}。この かんじの えは どれかな？`);
+
+            // Generate options (Correct choice + 1 distractor)
+            let choices = [currentMatchQuestion];
+            let otherChoices = KANJI_DATA.filter(k => k.kanji !== currentMatchQuestion.kanji);
+            otherChoices.sort(() => Math.random() - 0.5);
+            choices.push(otherChoices[0]);
+            choices.sort(() => Math.random() - 0.5);
+
+            const container = document.getElementById('match-choices');
+            container.innerHTML = '';
+
+            // Giant touch-friendly buttons
+            choices.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = "bg-white hover:bg-sky-50 border-4 border-slate-300 hover:border-sky-500 p-8 rounded-3xl flex flex-col items-center justify-center gap-4 shadow-lg transition bounce-hover min-h-[220px]";
+                btn.innerHTML = `
+                    <span class="text-8xl md:text-9xl">${item.emoji}</span>
+                    <span class="text-xl md:text-2xl font-black text-slate-700">${item.meaning.split('（')[0]}</span>
+                `;
+                btn.onclick = () => checkMatchAnswer(item);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkMatchAnswer(selected) {
+            if (selected.kanji === currentMatchQuestion.kanji) {
+                playSound('correct');
+                speakText('せいかい！すごいね！');
+                matchQuestionIndex++;
+                setTimeout(loadNextMatchingQuestion, 1200);
+            } else {
+                playSound('pop');
+                speakText('ざんねん！もういちど えらんでみよう！');
+            }
+        }
+
+        /* MODE 2: KANJI WRITING & TRACING LOGIC */
+        let canvas, ctx, isDrawing = false;
+
+        function startWritingGame() {
+            showView('view-writing');
+            initWritingCanvas();
+            loadWritingKanji(0);
+        }
+
+        function loadWritingKanji(index) {
+            currentWritingIndex = (index + KANJI_DATA.length) % KANJI_DATA.length;
+            const data = KANJI_DATA[currentWritingIndex];
+            
+            document.getElementById('current-kanji-num').textContent = currentWritingIndex + 1;
+            document.getElementById('writing-guide-kanji').textContent = data.kanji;
+            document.getElementById('writing-info').textContent = `「${data.kanji}」（${data.reading}）`;
+            document.getElementById('btn-read-kanji').onclick = () => speakText(`${data.kanji}。よみかたは、${data.reading}`);
+            document.getElementById('hanamaru-overlay').classList.add('hidden');
+            clearCanvas();
+            speakText(`${data.kanji} を なぞって かいてみよう！`);
+        }
+
+        function prevWritingKanji() {
+            playSound('pop');
+            loadWritingKanji(currentWritingIndex - 1);
+        }
+
+        function nextWritingKanji() {
+            playSound('pop');
+            loadWritingKanji(currentWritingIndex + 1);
+        }
+
+        /* Modal for selecting from all 80 Kanji */
+        function openKanjiPickerModal() {
+            playSound('pop');
+            const grid = document.getElementById('kanji-grid-modal');
+            grid.innerHTML = '';
+
+            KANJI_DATA.forEach((item, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `p-3 text-2xl font-black rounded-2xl border-2 transition bounce-hover flex flex-col items-center justify-center ${idx === currentWritingIndex ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-emerald-100'}`;
+                btn.innerHTML = `
+                    <span>${item.kanji}</span>
+                    <span class="text-xs font-normal text-slate-400">${item.reading}</span>
+                `;
+                btn.onclick = () => {
+                    loadWritingKanji(idx);
+                    closeKanjiPickerModal();
+                };
+                grid.appendChild(btn);
+            });
+
+            document.getElementById('modal-kanji-picker').classList.remove('hidden');
+        }
+
+        function closeKanjiPickerModal() {
+            playSound('pop');
+            document.getElementById('modal-kanji-picker').classList.add('hidden');
+        }
+
+        function initWritingCanvas() {
+            canvas = document.getElementById('write-canvas');
+            ctx = canvas.getContext('2d');
+
+            ctx.lineWidth = 22; // Extra thick pen stroke
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#059669';
+
+            canvas.onmousedown = (e) => startDraw(getPos(e));
+            canvas.onmousemove = (e) => draw(getPos(e));
+            canvas.onmouseup = endDraw;
+
+            canvas.ontouchstart = (e) => {
+                e.preventDefault();
+                startDraw(getPos(e.touches[0]));
+            };
+            canvas.ontouchmove = (e) => {
+                e.preventDefault();
+                draw(getPos(e.touches[0]));
+            };
+            canvas.ontouchend = endDraw;
+        }
+
+        function getPos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+                y: (evt.clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function startDraw(pos) {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(pos) {
+            if (!isDrawing) return;
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+        function endDraw() {
+            isDrawing = false;
+        }
+
+        function clearCanvas() {
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            document.getElementById('hanamaru-overlay').classList.add('hidden');
+        }
+
+        /* Save Trace Artwork as PNG Image */
+        function saveCanvasImage() {
+            playSound('pop');
+            const data = KANJI_DATA[currentWritingIndex];
+            
+            // Offscreen canvas for synthesis (Guide Kanji + User Handwriting)
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = 400;
+            exportCanvas.height = 400;
+            const expCtx = exportCanvas.getContext('2d');
+
+            // Fill white background
+            expCtx.fillStyle = '#ffffff';
+            expCtx.fillRect(0, 0, 400, 400);
+
+            // Draw dashed outer border
+            expCtx.strokeStyle = '#34d399';
+            expCtx.lineWidth = 8;
+            expCtx.strokeRect(10, 10, 380, 380);
+
+            // Draw guide Kanji (light gray)
+            expCtx.font = '900 200px "M PLUS Rounded 1c", sans-serif';
+            expCtx.fillStyle = '#cbd5e1';
+            expCtx.textAlign = 'center';
+            expCtx.textBaseline = 'middle';
+            expCtx.fillText(data.kanji, 200, 200);
+
+            // Overlay user hand-written lines from active canvas
+            expCtx.drawImage(canvas, 10, 10, 380, 380);
+
+            // Trigger Image Download
+            const link = document.createElement('a');
+            link.download = `かんじ_れんしゅう_${data.kanji}.png`;
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+
+            speakText('しゃしんに ほぞん したよ！');
+        }
+
+        function checkWriting() {
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let paintedPixels = 0;
+            for (let i = 3; i < imgData.data.length; i += 4) {
+                if (imgData.data[i] > 0) paintedPixels++;
+            }
+
+            if (paintedPixels > 1000) {
+                playSound('clear');
+                document.getElementById('hanamaru-overlay').classList.remove('hidden');
+                speakText('たいへん よくできました！はなまるです！');
+                addStar();
+            } else {
+                playSound('pop');
+                speakText('かんじを なぞって かいてみてね！');
+            }
+        }
+
+        window.onload = function() {
+            document.body.addEventListener('click', initAudio, { once: true });
+        };
+    </script>
+</body>
+</html>
